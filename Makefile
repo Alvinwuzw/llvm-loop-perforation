@@ -24,16 +24,15 @@ pass:
 	opt -mem2reg -S $< -o $@
 
 %-loop-info: %-phis.ll pass
-	opt -load $(BUILD_DIR)/loop-perf/libLoopPerforationPass.* -loop-count -info $*-loop-info.json -S -o /dev/null $<
+	opt -enable-new-pm=0 -load $(BUILD_DIR)/loop-perf/libLoopPerforationPass.so -loop-count -info $*-loop-info.json -S -o /dev/null $<
 
 %-perforated.ll: %-phis.ll pass
-	opt -load $(BUILD_DIR)/loop-perf/libLoopPerforationPass.* -loop-perf -rates $*-loop-rates.json -S $< -o $@
+	opt -enable-new-pm=0 -load $(BUILD_DIR)/loop-perf/libLoopPerforationPass.so -loop-perf -rates $*-loop-rates.json -S $< -o $@
 
 %.out: %.ll
 	clang $(CFLAGS) $(LDFLAGS) -O1 $^ -o $@
 
 # Driver things
-
 TARGET_SRC = $(wildcard $(TARGET)/*.c)
 TARGET_STANDARD_EXC := $(TARGET)/standard.out
 TARGET_STANDARD_OUTPUT := $(TARGET)/standard.txt
@@ -41,11 +40,11 @@ TARGET_STANDARD_OUTPUT := $(TARGET)/standard.txt
 TARGET_PHIS_LL := $(TARGET_SRC:.c=-phis.ll)
 
 loop-info: $(TARGET_PHIS_LL)
-	opt -load $(BUILD_DIR)/loop-perf/libLoopPerforationPass.* -loop-count -info  $(TARGET)/loop-info.json -S -o /dev/null $<
+	opt -enable-new-pm=0 -load $(BUILD_DIR)/loop-perf/libLoopPerforationPass.so -loop-count -info  $(TARGET)/loop-info.json -S -o /dev/null $<
 
 standard:
 	clang $(CFLAGS) $(LDFLAGS) -O1 $(TARGET_SRC) -o $(TARGET_STANDARD_EXC)
-
+# clang -O1 $(TARGET_SRC) -o $(TARGET_STANDARD_EXC) -lm
 standard-run:
 	$(TARGET_STANDARD_EXC) $(STANDARD_ARGS) > $(TARGET_STANDARD_OUTPUT)
 	$(RUN_AFTER_STANDARD)
@@ -55,8 +54,15 @@ TARGET_PERF_EXC := $(TARGET)/perforated.out
 TARGET_PERF_OUTPUT := $(TARGET)/perforated.txt
 
 perforated:
-	opt -load $(BUILD_DIR)/loop-perf/libLoopPerforationPass.* -loop-perf -rates $(TARGET)/loop-rates.json -S $(TARGET_PHIS_LL) -o $(TARGET_PERF_LL)
-	clang $(CFLAGS) $(LDFLAGS) -O1 $(TARGET_PERF_LL) -o $(TARGET_PERF_EXC)
+	rm -f ${TARGET}/default.profraw ${TARGET}/source_prof *.bc ${TARGET}/source.profdata *_output *.ll
+	clang -emit-llvm -c $(TARGET_SRC) -o ${TARGET}/source.bc
+	opt -enable-new-pm=0 -loop-simplify ${TARGET}/source.bc -o ${TARGET}/source.ls.bc
+	opt -enable-new-pm=0 -pgo-instr-gen -instrprof ${TARGET}/source.ls.bc -o ${TARGET}/source.ls.prof.bc
+	clang -fprofile-instr-generate ${TARGET}/source.ls.prof.bc -o ${TARGET}/source_prof
+	./${TARGET}/source_prof > correct_output
+	llvm-profdata merge -o ${TARGET}/source.profdata default.profraw
+	opt -enable-new-pm=0 -o $(TARGET_PERF_LL) -pgo-instr-use -pgo-test-profile-file=${TARGET}/source.profdata -load $(BUILD_DIR)/loop-perf/libLoopPerforationPass.so -loop-perf -rates $(TARGET)/loop-rates.json -S $(TARGET_PHIS_LL) < ${TARGET}/source.ls.bc > /dev/null
+	clang -O1 $(TARGET_PERF_LL) -o $(TARGET_PERF_EXC)
 
 perforated-run:
 	$(TARGET_PERF_EXC) $(PERFORATED_ARGS) > $(TARGET_PERF_OUTPUT)

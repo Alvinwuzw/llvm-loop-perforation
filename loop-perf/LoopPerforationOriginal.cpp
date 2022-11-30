@@ -1,5 +1,4 @@
 #include "llvm/Analysis/LoopInfo.h"
-#include "llvm/Analysis/BlockFrequencyInfo.h"
 #include "llvm/Analysis/LoopPass.h"
 #include "llvm/Analysis/IVUsers.h"
 #include "llvm/Pass.h"
@@ -13,7 +12,7 @@
 #include "json.hpp"
 #include <fstream>
 #include <sstream>
-#include <deque>
+
 using namespace llvm;
 using namespace nlohmann;
 using namespace std;
@@ -171,14 +170,11 @@ namespace {
     void getAnalysisUsage(AnalysisUsage &AU) const {
       AU.addRequired<LoopInfoWrapperPass>();
       AU.addRequired<IVUsersWrapperPass>();
-      AU.addRequired<BlockFrequencyInfoWrapperPass>();
       AU.addRequiredID(LoopSimplifyID);
     }
 
     virtual bool runOnLoop(Loop *L, LPPassManager &LPM) {
 
-      BlockFrequencyInfo &bfi =
-          getAnalysis<BlockFrequencyInfoWrapperPass>().getBFI();
       const Function *F = L->getHeader()->getParent();
 
       // only run this perforation pass on loops that were
@@ -189,28 +185,6 @@ namespace {
         !j[string(F->getParent()->getName())][string(F->getName())].contains(StringifyLoop(L)))
         return false;
 
-      // find the most time consuming blocks in the loop
-      deque<BasicBlock *> dq;
-      BasicBlock *header = L->getHeader();
-      BasicBlock *curr = nullptr;
-      dq.push_back(header);
-      BasicBlock *mostFreq = nullptr;
-      uint64_t maxBlockCount = 0;
-      while (!dq.empty()) {
-        curr = dq.back();
-        dq.pop_back();
-        for (BasicBlock *sus : successors(curr)) {
-          uint64_t blockCount = bfi.getBlockProfileCount(sus).getValue();
-          if (blockCount >= maxBlockCount) {
-              mostFreq = sus;
-              maxBlockCount = blockCount;
-          }
-          if (sus != header) {
-              dq.push_back(sus);
-          }
-        } //  end for
-      }   // end while
-      errs() << "max block count is : " << maxBlockCount << "\n";
       // Find the canonical induction variable for this loop
       PHINode *PHI = L->getCanonicalInductionVariable();
 

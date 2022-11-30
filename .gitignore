@@ -11,3 +11,10 @@ benchmarks/*/*.ll
 **/perforated.txt
 **/perforated.out
 **/__pycache__
+*_prof
+*.bc
+*.ls.bc
+*.ls.prof.bc
+*.profdata
+correct_output
+default.profraw
