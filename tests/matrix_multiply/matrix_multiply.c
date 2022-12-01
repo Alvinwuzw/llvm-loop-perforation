@@ -21,7 +21,7 @@ double **read_matrix(char *fn) {
     FILE * fp;
     char * line = NULL;
     size_t len = 0;
-    ssize_t read;
+    size_t read;
 
     fp = fopen(fn, "r");
     if (fp == NULL) {

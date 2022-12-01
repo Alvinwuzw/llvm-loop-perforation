@@ -197,7 +197,27 @@ namespace {
       dq.push_back(header);
       BasicBlock *mostFreq = nullptr;
       uint64_t maxBlockCount = 0;
-      vector<BasicBlock*> =  L->getBlocksVector();
+      uint64_t loadCount = 0;
+      uint64_t storeCount = 0;
+      vector<BasicBlock*> BBList = L->getBlocksVector();
+      for (auto BB : BBList) {
+        // uint64_t blockCount = bfi.getBlockProfileCount(BB).getValue();
+        // errs() << "########" << BB->getName() << ": " << blockCount << '\n';
+        for (Instruction &Ins : *BB) {
+          if (Ins.getOpcode() == Instruction::Load) {
+            loadCount++;
+          } // if
+          if (Ins.getOpcode() == Instruction::Store) {
+            storeCount++;
+          } // if
+          if (Ins.getOpcode() == Instruction::Load) {
+            for (auto user : Ins.getOperand(0)->users()) {
+              // TODO
+            } // for all users of load
+          } // if load
+        } // for instruction
+      } // for basic block
+
       // while (!dq.empty()) {
       //   curr = dq.back();
       //   dq.pop_back();
@@ -212,7 +232,9 @@ namespace {
       //     dq.push_back(sus);
       //   } //  end for
       // }   // end while
-      errs() << "max block count is : " << maxBlockCount << "\n";
+      errs() << "!!!!!!Load count is : " << loadCount << "\n";
+      errs() << "!!!!!!Store count is : " << storeCount << "\n";
+      // errs() << "max block count is : " << maxBlockCount << "\n";
       // Find the canonical induction variable for this loop
       PHINode *PHI = L->getCanonicalInductionVariable();
 
