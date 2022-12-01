@@ -14,6 +14,7 @@
 #include <fstream>
 #include <sstream>
 #include <deque>
+#include <vector>
 using namespace llvm;
 using namespace nlohmann;
 using namespace std;
@@ -196,20 +197,21 @@ namespace {
       dq.push_back(header);
       BasicBlock *mostFreq = nullptr;
       uint64_t maxBlockCount = 0;
-      while (!dq.empty()) {
-        curr = dq.back();
-        dq.pop_back();
-        for (BasicBlock *sus : successors(curr)) {
-          uint64_t blockCount = bfi.getBlockProfileCount(sus).getValue();
-          if (blockCount >= maxBlockCount) {
-              mostFreq = sus;
-              maxBlockCount = blockCount;
-          }
-          if (sus != header) {
-              dq.push_back(sus);
-          }
-        } //  end for
-      }   // end while
+      vector<BasicBlock*> =  L->getBlocksVector();
+      // while (!dq.empty()) {
+      //   curr = dq.back();
+      //   dq.pop_back();
+      //   if (L->isLoopLatch(curr))
+      //     continue; // find latch
+      //   for (BasicBlock *sus : successors(curr)) {
+      //     uint64_t blockCount = bfi.getBlockProfileCount(sus).getValue();
+      //     if (blockCount >= maxBlockCount) {
+      //         mostFreq = sus;
+      //         maxBlockCount = blockCount;
+      //     }
+      //     dq.push_back(sus);
+      //   } //  end for
+      // }   // end while
       errs() << "max block count is : " << maxBlockCount << "\n";
       // Find the canonical induction variable for this loop
       PHINode *PHI = L->getCanonicalInductionVariable();
