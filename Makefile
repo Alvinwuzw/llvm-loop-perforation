@@ -59,10 +59,10 @@ perforated:
 	opt -enable-new-pm=0 -loop-simplify ${TARGET}/source.bc -o ${TARGET}/source.ls.bc
 	opt -enable-new-pm=0 -pgo-instr-gen -instrprof ${TARGET}/source.ls.bc -o ${TARGET}/source.ls.prof.bc
 	clang -fprofile-instr-generate ${TARGET}/source.ls.prof.bc -o ${TARGET}/source_prof
-	./${TARGET}/source_prof > correct_output
-	llvm-profdata merge -o ${TARGET}/source.profdata default.profraw
-	opt -enable-new-pm=0 -o $(TARGET_PERF_LL) -pgo-instr-use -pgo-test-profile-file=${TARGET}/source.profdata -load $(BUILD_DIR)/loop-perf/libLoopPerforationPass.so -loop-perf -rates $(TARGET)/loop-rates.json -S $(TARGET_PHIS_LL) < ${TARGET}/source.ls.bc > /dev/null
-	clang -O1 $(TARGET_PERF_LL) -o $(TARGET_PERF_EXC)
+	cd $(TARGET); ./source_prof > correct_output; cd ../..
+	llvm-profdata merge -o ${TARGET}/source.profdata ${TARGET}/default.profraw
+	opt -enable-new-pm=0 -S $(TARGET_PHIS_LL) -o $(TARGET_PERF_LL) -pgo-instr-use -pgo-test-profile-file=${TARGET}/source.profdata -load $(BUILD_DIR)/loop-perf/libLoopPerforationPass.so -loop-perf -rates $(TARGET)/loop-rates.json < ${TARGET}/source.ls.bc > /dev/null
+	clang $(CFLAGS) $(LDFLAGS) -O1 $(TARGET_PERF_LL) -o $(TARGET_PERF_EXC)
 
 perforated-run:
 	$(TARGET_PERF_EXC) $(PERFORATED_ARGS) > $(TARGET_PERF_OUTPUT)
