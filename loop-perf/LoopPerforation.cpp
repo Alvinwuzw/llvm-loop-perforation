@@ -222,9 +222,9 @@ namespace {
         }
       }
 
-      int LoopRate = 1;
-      if (!j.empty()) {
-        LoopRate = j[string(F->getParent()->getName())][string(F->getName())][StringifyLoop(L)];
+      // int LoopRate = 1;
+      // if (!j.empty()) {
+      //   LoopRate = j[string(F->getParent()->getName())][string(F->getName())][StringifyLoop(L)];
 
       BinaryOperator *Increment = dyn_cast<BinaryOperator>(ValueToChange);
       Value *incretVar = Increment->getOperand(0);
@@ -242,20 +242,20 @@ namespace {
       // SplitBlockAndInsertIfThenElse();
 
 
-      // for (auto &Op : Increment->operands()) {
-      //   if (Op == PHI) continue;
-      //   int LoopRate = 1;
-      //   if (!j.empty()) {
-      //     LoopRate = j[string(F->getParent()->getName())][string(F->getName())][StringifyLoop(L)];
-      //   }
-      //   Type *ConstType = Op->getType();
-      //   Constant *NewInc = ConstantInt::get(ConstType, LoopRate /*value*/, true /*issigned*/);
+      for (auto &Op : Increment->operands()) {
+        if (Op == PHI) continue;
+        int LoopRate = 1;
+        if (!j.empty()) {
+          LoopRate = j[string(F->getParent()->getName())][string(F->getName())][StringifyLoop(L)];
+        }
+        Type *ConstType = Op->getType();
+        Constant *NewInc = ConstantInt::get(ConstType, LoopRate /*value*/, true /*issigned*/);
 
-      //   errs() << "Changing [" << *Op << "] to [" << *NewInc << "]!\n";
+        errs() << "Changing [" << *Op << "] to [" << *NewInc << "]!\n";
 
-      //   Op = NewInc;
-      //   return true;
-      // }
+        Op = NewInc;
+        return true;
+      }
       
       // should never reach here
       return false;
