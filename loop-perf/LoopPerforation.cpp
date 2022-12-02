@@ -203,8 +203,8 @@ namespace {
         } // for instruction
       } // for basic block
 
-      errs() << "!!!!!!Store count is : " << storeCount << "\n";
-      errs() << "!!!!!!Store count is : " << StoreInstrList.size() << "\n";
+      // errs() << "!!!!!!Store count is : " << storeCount << "\n";
+      // errs() << "!!!!!!Store count is : " << StoreInstrList.size() << "\n";
       
       // Find the canonical induction variable for this loop
       PHINode *PHI = L->getCanonicalInductionVariable();

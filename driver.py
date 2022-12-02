@@ -9,6 +9,8 @@ import argparse
 import re
 
 ### helpers
+import pdb
+import itertools
 
 def flatten(d, prefix="", target={}, sep=";"):
 	for k,v in d.items():
@@ -42,14 +44,30 @@ def join_optimize(parameters, cmd_args, store_in = {}):
 		for funcname, loopdict in functdict.items():
 			for loopname in loopdict:
 				for r in RATES:
-					rate_params[modulename][funcname][loopname] = r;
+					rate_params[modulename][funcname][loopname] = r
 					# build, and test perforation
 					store_in[json.dumps(rate_params)] = test_perforation(rate_params, cmd_args.N_trials)
 					rate_params[modulename][funcname][loopname] = 1 # reset the current loop to 1.
-
 				# print('Return code: {}'.format(return_code))
 				# print('Time for perforated loop: {}'.format(end - start))
 
+def join_optimize_perm(parameters, cmd_args, store_in = {}):
+	############# now run perforated versions #############
+	# sequentially take each loop and perforate at given rate
+	for modulename, functdict in infojson.items():
+		for funcname, loopdict in functdict.items():
+			rates = [p for p in itertools.product(RATES, repeat=len(loopdict))]
+			# print("---------------------------------------")
+			# print(rates)
+			# print("---------------------------------------")
+			for rate in rates:
+				i = 0
+				for loopname in loopdict:
+					rate_params[modulename][funcname][loopname] = rate[i]
+					# build, and test perforation
+					i = i + 1
+				store_in[json.dumps(rate_params)] = test_perforation(rate_params, cmd_args.N_trials)
+	# pdb.set_trace()
 
 	# get the maximum perf rate on each loop.
 	def join( perf_rates ):
@@ -191,7 +209,9 @@ if __name__ == "__main__":
 
 
 	parameters = flatten(rate_params, sep="|>>|")
-	RSLT, _ = join_optimize( parameters, args, store_in=results )
+	print("DEBUG")
+	# RSLT, _ = join_optimize( parameters, args, store_in=results ) # ORGINAL!!!!
+	RSLT, _ = join_optimize_perm( parameters, args, store_in=results )
 
 	# we now have a collection of {result => indent}.
 	# In this case, it's a bunch of loops. Merge them together.
