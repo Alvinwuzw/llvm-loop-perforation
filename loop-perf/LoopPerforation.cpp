@@ -190,51 +190,22 @@ namespace {
         !j[string(F->getParent()->getName())][string(F->getName())].contains(StringifyLoop(L)))
         return false;
 
-      // find the most time consuming blocks in the loop
-      deque<BasicBlock *> dq;
-      BasicBlock *header = L->getHeader();
-      BasicBlock *curr = nullptr;
-      dq.push_back(header);
-      BasicBlock *mostFreq = nullptr;
       uint64_t maxBlockCount = 0;
-      uint64_t loadCount = 0;
       uint64_t storeCount = 0;
       vector<BasicBlock*> BBList = L->getBlocksVector();
+      vector<Instruction*> StoreInstrList;
       for (auto BB : BBList) {
-        // uint64_t blockCount = bfi.getBlockProfileCount(BB).getValue();
-        // errs() << "########" << BB->getName() << ": " << blockCount << '\n';
         for (Instruction &Ins : *BB) {
-          if (Ins.getOpcode() == Instruction::Load) {
-            loadCount++;
-          } // if
           if (Ins.getOpcode() == Instruction::Store) {
             storeCount++;
+            StoreInstrList.push_back(&Ins);
           } // if
-          if (Ins.getOpcode() == Instruction::Load) {
-            for (auto user : Ins.getOperand(0)->users()) {
-              // TODO
-            } // for all users of load
-          } // if load
         } // for instruction
       } // for basic block
 
-      // while (!dq.empty()) {
-      //   curr = dq.back();
-      //   dq.pop_back();
-      //   if (L->isLoopLatch(curr))
-      //     continue; // find latch
-      //   for (BasicBlock *sus : successors(curr)) {
-      //     uint64_t blockCount = bfi.getBlockProfileCount(sus).getValue();
-      //     if (blockCount >= maxBlockCount) {
-      //         mostFreq = sus;
-      //         maxBlockCount = blockCount;
-      //     }
-      //     dq.push_back(sus);
-      //   } //  end for
-      // }   // end while
-      errs() << "!!!!!!Load count is : " << loadCount << "\n";
       errs() << "!!!!!!Store count is : " << storeCount << "\n";
-      // errs() << "max block count is : " << maxBlockCount << "\n";
+      errs() << "!!!!!!Store count is : " << StoreInstrList.size() << "\n";
+      
       // Find the canonical induction variable for this loop
       PHINode *PHI = L->getCanonicalInductionVariable();
 
@@ -251,22 +222,40 @@ namespace {
         }
       }
 
+      int LoopRate = 1;
+      if (!j.empty()) {
+        LoopRate = j[string(F->getParent()->getName())][string(F->getName())][StringifyLoop(L)];
+
       BinaryOperator *Increment = dyn_cast<BinaryOperator>(ValueToChange);
-      for (auto &Op : Increment->operands()) {
-        if (Op == PHI) continue;
+      Value *incretVar = Increment->getOperand(0);
+      
+      // Value* 
+      // ModuloInstruction / Srem
+      // %i = i32 load i32* %i_address
+      // %1 = i32 srem %i, 12 ; %i % 12
+      // brez %1, storeBB
+      // i +=1  -->  i+=LoopRate
+      // i, i % LoopRate != 0
+      // store xx yy
+      
+      
+      // SplitBlockAndInsertIfThenElse();
 
-        int LoopRate = 1;
-        if (!j.empty()) {
-          LoopRate = j[string(F->getParent()->getName())][string(F->getName())][StringifyLoop(L)];
-        }
-        Type *ConstType = Op->getType();
-        Constant *NewInc = ConstantInt::get(ConstType, LoopRate /*value*/, true /*issigned*/);
 
-        errs() << "Changing [" << *Op << "] to [" << *NewInc << "]!\n";
+      // for (auto &Op : Increment->operands()) {
+      //   if (Op == PHI) continue;
+      //   int LoopRate = 1;
+      //   if (!j.empty()) {
+      //     LoopRate = j[string(F->getParent()->getName())][string(F->getName())][StringifyLoop(L)];
+      //   }
+      //   Type *ConstType = Op->getType();
+      //   Constant *NewInc = ConstantInt::get(ConstType, LoopRate /*value*/, true /*issigned*/);
 
-        Op = NewInc;
-        return true;
-      }
+      //   errs() << "Changing [" << *Op << "] to [" << *NewInc << "]!\n";
+
+      //   Op = NewInc;
+      //   return true;
+      // }
       
       // should never reach here
       return false;

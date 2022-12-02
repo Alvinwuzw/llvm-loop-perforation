@@ -18,3 +18,4 @@ benchmarks/*/*.ll
 *.profdata
 correct_output
 default.profraw
+*/.nfs*
