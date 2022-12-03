@@ -19,23 +19,6 @@ def flatten(d, prefix="", target={}, sep=";"):
 		else:
 			target[prefix + k] = v
 	return target
-<<<<<<< HEAD
-
-# # assume that same structure for d1, d2. Save in d1
-# def joint_rec_iter(d1, d2, f):
-# 	for k, v1 in d1.items():
-# 		v2 = d2[k]
-# 		if isinstance(v1, dict) and isinstance(v2, dict):
-# 			joint_rec_iter(v1, v2, f)
-# 		else:
-# 			d1[k] = f(v1, v2)
-
-# # returns an optimum parameter setting, out of
-# def sample_optimize(parameter_keys, parameter_values, executable, scorer):
-# 	pass
-# 	#soon...
-=======
->>>>>>> 26e0098ec36c9c5a1f358eec18f13458292ff093
 
 def join_optimize(parameters, cmd_args, store_in = {}):
 	for modulename, functdict in infojson.items():
@@ -56,9 +39,9 @@ def join_optimize(parameters, cmd_args, store_in = {}):
 
 	for key, values in store_in.items():
 		avg_value = None
-		skip = False
 
 		# calculate average performance and accuracy metrics
+		skip = False
 		for value in values:
 			# skip ones with memory crashes/seg fault/infinite loop/etc
 			if value['return_code'] != 0:
@@ -222,10 +205,6 @@ if __name__ == "__main__":
 
 
 	parameters = flatten(rate_params, sep="|>>|")
-<<<<<<< HEAD
-	print("DEBUG")
-=======
->>>>>>> 26e0098ec36c9c5a1f358eec18f13458292ff093
 	RSLT, _ = join_optimize( parameters, args, store_in=results)
 
 	# we now have a collection of {result => indent}.
