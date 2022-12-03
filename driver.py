@@ -15,85 +15,80 @@ import itertools
 def flatten(d, prefix="", target={}, sep=";"):
 	for k,v in d.items():
 		if isinstance(v, dict):
-			flatten(v, prefix+sep, target);
+			flatten(v, prefix + sep, target)
 		else:
-			target[prefix+k] = v;
-
-	return target;
-
-# assume that same structure for d1, d2. Save in d1
-def joint_rec_iter(d1,d2, f):
-	for k,v1 in d1.items():
-		v2 = d2[k]
-		if isinstance(v1, dict) and isinstance(v2, dict):
-			joint_rec_iter(v1,v2, f)
-		else:
-			d1[k] = f(v1, v2)
-
-
-# returns an optimum parameter setting, out of
-def sample_optimize(parameter_keys, parameter_values, executable, scorer):
-	pass
-	#soon...
-
+			target[prefix + k] = v
+	return target
 
 def join_optimize(parameters, cmd_args, store_in = {}):
-	############# now run perforated versions #############
-	# sequentially take each loop and perforate at given rate
-	for modulename, functdict in infojson.items():
-		for funcname, loopdict in functdict.items():
-			for loopname in loopdict:
-				for r in RATES:
-					rate_params[modulename][funcname][loopname] = r
-					# build, and test perforation
-					store_in[json.dumps(rate_params)] = test_perforation(rate_params, cmd_args.N_trials)
-					rate_params[modulename][funcname][loopname] = 1 # reset the current loop to 1.
-				# print('Return code: {}'.format(return_code))
-				# print('Time for perforated loop: {}'.format(end - start))
-
-def join_optimize_perm(parameters, cmd_args, store_in = {}):
-	############# now run perforated versions #############
-	# sequentially take each loop and perforate at given rate
 	for modulename, functdict in infojson.items():
 		for funcname, loopdict in functdict.items():
 			rates = [p for p in itertools.product(RATES, repeat=len(loopdict))]
-			# print("---------------------------------------")
-			# print(rates)
-			# print("---------------------------------------")
 			for rate in rates:
 				i = 0
 				for loopname in loopdict:
 					rate_params[modulename][funcname][loopname] = rate[i]
-					# build, and test perforation
 					i = i + 1
 				store_in[json.dumps(rate_params)] = test_perforation(rate_params, cmd_args.N_trials)
-	# pdb.set_trace()
+			# reset
+			for loopname in loopdict:
+				rate_params[modulename][funcname][loopname] = 1
+	
+	# join_optimal()
+	optimum_key, optimum_val = None, None
 
-	# get the maximum perf rate on each loop.
-	def join( perf_rates ):
-		# initialize to bottom
-		rslt = { m : { f: {l : 1 for l in ld } for f,ld in fd.items()} for m,fd in infojson.items() };
+	for key, values in store_in.items():
+		avg_value = None
+		skip = False
 
-		for sss in perf_rates:
-			if sss[0] == '!':
-				sss = sss[sss.index('_')+1:]
-			data = json.loads(sss);
-			joint_rec_iter(rslt, data, max);
-		return rslt
+		# calculate average performance and accuracy metrics
+		for value in values:
+			# skip ones with memory crashes/seg fault/infinite loop/etc
+			if value['return_code'] != 0:
+				skip = True
+				break
+			if avg_value is None:
+				avg_value = value
+			else:
+				avg_value["time"] += value["time"]
+				for error_key in value["errors"]:
+					avg_value["errors"][error_key] += value["errors"][error_key]
+		
+		if skip:
+			continue
 
-	# filter by good enough and then take join of data
-	good = { key : data for key, data in store_in.items() if good_enough(data) }
-	joined = join(good.keys())
+		avg_value["time"] /= cmd_args.N_trials
+		for error_key in avg_value["errors"]:
+			avg_value["errors"][error_key] /= cmd_args.N_trials
+		
+		# skip ones with bad performance
+		for _, error in avg_value["errors"].items():
+			if error > cmd_args.max_error:
+				skip = True
+				break
+		
+		if skip:
+			continue
+
+		if key[0] == '!':
+			key = key[key.index('_')+1:]
+		
+		if optimum_key is None or optimum_val["time"] > avg_value["time"]:
+			optimum_key = key
+			optimum_val = avg_value
+	
+	joined = json.loads(optimum_key)
 	print("JOINED", joined)
 
 	# dump final
-	RSLT = test_perforation(joined, args.N_trials);
+	RSLT = test_perforation(joined, cmd_args.N_trials)
 
+	# FIX: dont need to re-run the optimal one
 	if(any(R['return_code'] for R in RSLT) != 0):
-		raise RuntimeError("The Joined result produces an error");
+		raise RuntimeError("The Joined result produces an error")
 
 	results['!joined_' + json.dumps(joined)] = RSLT
-	print("THE JOINED RESULT perfs @ ["+",".join(map(str,flatten(joined).values()))+"]", json.dumps(RSLT, indent=4));
+	print("THE JOINED RESULT perfs @ ["+",".join(map(str, flatten(joined).values()))+"]", json.dumps(RSLT, indent=4))
 
 	return RSLT, results
 
@@ -110,7 +105,7 @@ if __name__ == "__main__":
 	parser.add_argument('--N-trials', type=int, required=False, default=10)
 
 
-	args = parser.parse_args();
+	args = parser.parse_args()
 
 	print(args)
 
@@ -123,7 +118,7 @@ if __name__ == "__main__":
 	results_path = os.path.join(target, 'results.json')
 	error_path = os.path.join(target, 'error')
 
-	####################### NOW WE BEGIN ########################3
+	####################### NOW WE BEGIN ########################
 	subprocess.call(['make', 'clean'])
 
 	# # make, run the standard version, for output reasons
@@ -149,7 +144,7 @@ if __name__ == "__main__":
 
 	def test_perforation(rate_parameters, N_trials) :
 		with open(loop_rates_path, 'w') as file:
-			json.dump(rate_parameters, file, indent=4);
+			json.dump(rate_parameters, file, indent=4)
 
 
 		# now run all the other stuff.
@@ -192,11 +187,11 @@ if __name__ == "__main__":
 
 			rslt_array[t] = R
 
-		return rslt_array;
+		return rslt_array
 
-	def good_enough( R_list ):
-		return all(R['return_code'] == 0 and any(e < args.max_error for n,e in R['errors'].items())
-			for R in R_list)
+	# def good_enough( R_list ):
+	# 	return all(R['return_code'] == 0 and any(e < args.max_error for n,e in R['errors'].items())
+	# 		for R in R_list)
 
 
 	# initialize rate parameters to 1.
@@ -209,15 +204,13 @@ if __name__ == "__main__":
 
 
 	parameters = flatten(rate_params, sep="|>>|")
-	print("DEBUG")
-	# RSLT, _ = join_optimize( parameters, args, store_in=results ) # ORGINAL!!!!
-	RSLT, _ = join_optimize_perm( parameters, args, store_in=results )
+	RSLT, _ = join_optimize( parameters, args, store_in=results)
 
 	# we now have a collection of {result => indent}.
 	# In this case, it's a bunch of loops. Merge them together.
 
 
 	print("All Results collected")
-	print(json.dumps(dict(results), indent=4));
+	print(json.dumps(dict(results), indent=4))
 	with open(results_path, 'w') as file:
-		json.dump(dict(results), file, indent=4);
+		json.dump(dict(results), file, indent=4)
