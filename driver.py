@@ -20,10 +20,37 @@ def flatten(d, prefix="", target={}, sep=";"):
 			target[prefix + k] = v
 	return target
 
+
+def rate_counter(d):
+	if isinstance(d, dict):
+		return sum(rate_counter(d[k]) for k in d)
+	else:
+		return 1
+
+
 def join_optimize(parameters, cmd_args, store_in = {}):
 	'''
 	Perform loop perforation exhaustively for each combination of rates and write the result into store_in aka result defined in main. Perform joined loop perforation and writes the joined result (RSLT) into result. infojson and rate_params are defined in main.
 	'''
+	# rates = [p for p in itertools.product(RATES, repeat=rate_counter(infojson))]
+	# for modulename, functdict in infojson.items():
+	# 	counter = 0
+	# 	for rate in rates:
+	# 		print("NOW: ", counter)
+	# 		if (all(rt == 1 for rt in rate)):
+	# 			continue
+	# 		i = 0
+	# 		for funcname in functdict:
+	# 			for loopname in functdict[funcname]:
+	# 				rate_params[modulename][funcname][loopname] = rate[i]
+	# 				i = i + 1
+	# 		store_in[json.dumps(rate_params)] = test_perforation(rate_params, cmd_args.N_trials)
+	# 		counter = counter + 1
+	# 	# reset rate_params to 1
+	# 	for funcname in functdict:
+	# 		for loopname in functdict[funcname]:
+	# 			rate_params[modulename][funcname][loopname] = 1
+
 	for modulename, functdict in infojson.items():
 		for funcname, loopdict in functdict.items():
 			rates = [p for p in itertools.product(RATES, repeat=len(loopdict))]
