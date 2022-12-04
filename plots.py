@@ -80,6 +80,7 @@ def plot_frontier(data, args) :
 	ax.axes.set_title(args.target.split('/')[-1]);
 
 	# ax.axes.set_xlim([-0.1, ax.axes.get_xlim()[1]])
+	times = times[times < 1E308]
 	x_step = np.around(times.max()/5, -int(np.ceil(np.log10(times.max()))-2) )
 	# if (times.max()
 
