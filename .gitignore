@@ -19,3 +19,6 @@ benchmarks/*/*.ll
 correct_output
 default.profraw
 */.nfs*
+*.png
+*.jpg
+*.jpeg
