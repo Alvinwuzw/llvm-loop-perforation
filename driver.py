@@ -21,10 +21,15 @@ def flatten(d, prefix="", target={}, sep=";"):
 	return target
 
 def join_optimize(parameters, cmd_args, store_in = {}):
+	'''
+	Perform loop perforation exhaustively for each combination of rates and write the result into store_in aka result defined in main. Perform joined loop perforation and writes the joined result (RSLT) into result. infojson and rate_params are defined in main.
+	'''
 	for modulename, functdict in infojson.items():
 		for funcname, loopdict in functdict.items():
 			rates = [p for p in itertools.product(RATES, repeat=len(loopdict))]
 			for rate in rates:
+				if (all(rt == 1 for rt in rate)):
+					continue
 				i = 0
 				for loopname in loopdict:
 					rate_params[modulename][funcname][loopname] = rate[i]
@@ -101,13 +106,10 @@ if __name__ == "__main__":
 	parser.add_argument('target', nargs='?', default='tests/matrix_multiply')
 	parser.add_argument('-t', '--timeout', default=5, type=int)
 	parser.add_argument('-e', '--max-error', default=0.5, type=float, help="the tolerance below which we will throw out loops")
-	parser.add_argument('--rates', nargs='+', type=int, required=False, default=[2,3,5,8,13,21])
+	parser.add_argument('--rates', nargs='+', type=int, required=False, default=[1,2,3,5,8,13,21])
 	parser.add_argument('--error_filter', type=str, required=False, default='.*')
 	parser.add_argument('--N-trials', type=int, required=False, default=10)
-
-
 	args = parser.parse_args()
-
 	print(args)
 
 	target = args.target
@@ -122,8 +124,7 @@ if __name__ == "__main__":
 	####################### NOW WE BEGIN ########################
 	subprocess.call(['make', 'clean'])
 
-	# # make, run the standard version, for output reasons
-
+	# make, run the standard version, for output reasons
 	subprocess.call(['make', 'standard', 'TARGET={}'.format(target)])
 	intact_proc = subprocess.Popen(['make', 'standard-run', 'TARGET={}'.format(target)])
 	intact_proc.wait()
@@ -201,11 +202,11 @@ if __name__ == "__main__":
 
 	# no perforation. Choose one place to save it!
 	# results["STANDARD"] = test_perforation(rate_params)
-	results['!original_' + json.dumps(rate_params)] =  test_perforation(rate_params, args.N_trials)
+	results['!original_' + json.dumps(rate_params)] = test_perforation(rate_params, args.N_trials)
 
 
 	parameters = flatten(rate_params, sep="|>>|")
-	RSLT, _ = join_optimize( parameters, args, store_in=results)
+	RSLT, _ = join_optimize( parameters, args, store_in=results )
 
 	# we now have a collection of {result => indent}.
 	# In this case, it's a bunch of loops. Merge them together.
