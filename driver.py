@@ -28,6 +28,35 @@ def flatten(dic, prefix="", target={}, sep=";"):
 	return target
 
 
+def average_time_error(result, num_trials):
+	'''
+	calculate average time and errors for result (value in results.json)
+	returns none if any return code is not 0
+	'''
+
+	time_avg = None
+	errors_avg = None
+	for stats in result:
+		if stats['return_code'] != 0:
+			time_avg = None
+			errors_avg = None
+			break
+		if time_avg is None:
+			time_avg = stats["time"]
+			errors_avg = stats["errors"]
+		else:
+			time_avg += stats["time"]
+			for error_key in stats["errors"]:
+				errors_avg[error_key] += stats["errors"][error_key]
+	
+	if time_avg is not None and errors_avg is not None:
+		time_avg /= num_trials
+		for error_key in errors_avg:
+			errors_avg[error_key] /= num_trials
+
+	return time_avg, errors_avg
+
+
 def score(sp_avg, acc_avg, acc_bound):
 	'''
 	return harmonic mean for greedy approach
@@ -97,7 +126,7 @@ def join_optimize(args):
 
 	# load loop info
 	loop_info_path = os.path.join(args.target, 'loop-info.json')
-	infojson = json.load(open(loop_info_path, 'r'))
+	info_json = json.load(open(loop_info_path, 'r'))
 
 	# import the error module
 	sys.path.append(args.target)
@@ -106,80 +135,135 @@ def join_optimize(args):
 	filtered_error_names = set(n for n in mod.error_names if exp.fullmatch(n))
 
 	# initialize rate parameters to 1.
-	rate_params = { m : { f: {l : 1 for l in ld } for f,ld in fd.items()} for m,fd in infojson.items() }
+	rate_params = { m : { f: {l : 1 for l in ld } for f,ld in fd.items()} for m,fd in info_json.items() }
 	results = {}	# results dictionary: {loop rate dict, jsonified} => statistic => value.
 
 	# no perforation.
-	results['!original_' + json.dumps(rate_params)] = test_perforation(args, rate_params, filtered_error_names, mod)
+	result_no_perf = test_perforation(args, rate_params, filtered_error_names, mod)
+	results['!original_' + json.dumps(rate_params)] = result_no_perf
 	
-	for modulename, functdict in infojson.items():
-		for funcname, loopdict in functdict.items():
-			rates_perm = [p for p in itertools.product([1] + args.rates, repeat=len(loopdict))]
-			for rate in rates_perm:
-				if (all(rt == 1 for rt in rate)):
-					continue
-				i = 0
-				for loopname in loopdict:
-					rate_params[modulename][funcname][loopname] = rate[i]
-					i = i + 1
-				results[json.dumps(rate_params)] = test_perforation(args, rate_params, filtered_error_names, mod)
-			# reset
-			for loopname in loopdict:
-				rate_params[modulename][funcname][loopname] = 1
+	# calculate average stats for no perforation
+	no_perf_time_avg, no_perf_errors_avg = average_time_error(result_no_perf, args.N_trials)
+	# there should be no errors when no loop perforation
+	assert(no_perf_time_avg is not None and no_perf_errors_avg is not None)
 	
-	# join_optimal()
-	optimum_key, optimum_val = None, None
-
-	for key, values in results.items():
-		value_avg = None
-
-		# calculate average performance and accuracy metrics
-		skip = False
-		for value in values:
-			# skip ones with memory crashes/seg fault/infinite loop/etc
-			if value['return_code'] != 0:
-				skip = True
-				break
-			if value_avg is None:
-				value_avg = value
-			else:
-				value_avg["time"] += value["time"]
-				for error_key in value["errors"]:
-					value_avg["errors"][error_key] += value["errors"][error_key]
+	# exhaustive approach and greedy approach
+	if (args.mode == 'exhaustive'):
+		# try all combinations of perforation rates per function
+		for module_name, func_dict in info_json.items():
+			for func_name, loop_dict in func_dict.items():
+				rates_perm = [p for p in itertools.product([1] + args.rates, repeat=len(loop_dict))]
+				for rate in rates_perm:
+					if (all(rt == 1 for rt in rate)):
+						continue
+					i = 0
+					for loop_name in loop_dict:
+						rate_params[module_name][func_name][loop_name] = rate[i]
+						i = i + 1
+					results[json.dumps(rate_params)] = test_perforation(args, rate_params, filtered_error_names, mod)
+				# reset
+				for loop_name in loop_dict:
+					rate_params[module_name][func_name][loop_name] = 1
 		
-		if skip:
-			continue
+		# join_optimal()
+		optimum_key, optimum_val = None, None
 
-		value_avg["time"] /= args.N_trials
-		for error_key in value_avg["errors"]:
-			value_avg["errors"][error_key] /= args.N_trials
-		
-		# skip ones with bad performance on all inputs
-		skip = True
-		for _, error in value_avg["errors"].items():
-			if error < args.max_error:
-				skip = False
-				break
-		
-		if skip:
-			continue
-
-		if key[0] == '!':
+		for key, values in results.items():
 			# should skip original loop (no perforation)
-			continue
-			# key = key[key.index('_') + 1:]
-		
-		if optimum_key is None or optimum_val["time"] > value_avg["time"]:
-			optimum_key = key
-			optimum_val = value_avg
-	
-	joined = json.loads(optimum_key)
+			if key[0] == '!':
+				continue
+			
+			# calculate average performance and accuracy metrics
+			value_avg = None
+			skip = False
+			for value in values:
+				# skip ones with memory crashes/seg fault/infinite loop/etc
+				if value['return_code'] != 0:
+					skip = True
+					break
+				if value_avg is None:
+					value_avg = value
+				else:
+					value_avg["time"] += value["time"]
+					for error_key in value["errors"]:
+						value_avg["errors"][error_key] += value["errors"][error_key]
+			
+			if skip:
+				continue
+
+			value_avg["time"] /= args.N_trials
+			for error_key in value_avg["errors"]:
+				value_avg["errors"][error_key] /= args.N_trials
+			
+			# skip ones with bad performance on all inputs
+			if (min(value_avg["errors"].values()) >= args.max_error):
+				continue
+			
+			if optimum_key is None or optimum_val["time"] > value_avg["time"]:
+				optimum_key = key
+				optimum_val = value_avg
+	else:
+		# for each loop, find the rate which passes criticality testing and has the highest score
+		best_params_per_loop = []
+		for module_name, func_dict in info_json.items():
+			for func_name, loop_dict in func_dict.items():
+				for loop_name in loop_dict:
+					best_score = 0
+					best_rate = 1
+
+					for rate in args.rates:
+						rate_params[module_name][func_name][loop_name] = rate
+						result = test_perforation(args, rate_params, filtered_error_names, mod)
+						results[json.dumps(rate_params)] = result
+						time_avg, errors_avg = average_time_error(result, args.N_trials)
+
+						# criticality testing
+						if errors_avg is None or min(errors_avg.values()) >= args.max_error:
+							continue
+						
+						# calculate score
+						# there should be no absolute value but considering time imprecision for running toy programs
+						sp_avg = abs(time_avg - no_perf_time_avg) / no_perf_time_avg
+						curr_score = score(time_avg, min(errors_avg.values()), args.max_error) # take the minimum average accuracy
+						if curr_score > best_score:
+							best_score = curr_score
+							best_rate = rate
+
+					rate_params[module_name][func_name][loop_name] = 1 # reset the current loop to 1.
+
+					best_params = {}
+					best_params['module_name'] = module_name
+					best_params['func_name'] = func_name
+					best_params['loop_name'] = loop_name
+					best_params['score'] = best_score
+					best_params['rate'] = best_rate
+					best_params_per_loop.append(best_params)
+
+		best_params_per_loop.sort(key=lambda p : p['score'], reverse=True) # sorted by score in decreasing order
+
+		# try perforation rates with different combinations
+		best_rate_params = { m : { f: {l : 1 for l in ld } for f,ld in fd.items()} for m,fd in info_json.items() }
+		for p in best_params_per_loop:
+			best_rate_params[p['module_name']][p['func_name']][p['loop_name']] = p['rate']
+			result = test_perforation(args, best_rate_params, filtered_error_names, mod)
+			results[json.dumps(best_rate_params)] = result
+			time_avg, errors_avg = average_time_error(result, args.N_trials)
+			# criticality testing
+			if errors_avg is None or min(errors_avg.values()) >= args.max_error:
+				best_rate_params[p['module_name']][p['func_name']][p['loop_name']] = 1
+
+	if (args.mode == 'exhaustive'):
+		if optimum_key is None:
+			# any loop perforation fails
+			joined = { m : { f: {l : 1 for l in ld } for f,ld in fd.items()} for m,fd in info_json.items() }
+		else:
+			joined = json.loads(optimum_key)
+	else:
+		joined = best_rate_params
 	print("JOINED", joined)
 
 	# dump final
 	optimal_result = test_perforation(args, joined, filtered_error_names, mod)
-
-	# FIX: don't need to re-run the optimal one
 	if(any(R['return_code'] for R in optimal_result) != 0):
 		raise RuntimeError("The Joined result produces an error")
 
@@ -229,7 +313,6 @@ if __name__ == "__main__":
 
 	# we now have a collection of {result => indent}.
 	# In this case, it's a bunch of loops. Merge them together.
-
 	print("All Results collected")
 	print(json.dumps(dict(results), indent=4))
 	with open(results_path, 'w') as file:
