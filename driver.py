@@ -62,7 +62,7 @@ def score(sp_avg, acc_avg, acc_bound):
 	return harmonic mean for greedy approach
 	'''
 
-	if (abs(sp_avg - 1) < 0.00001 or abs(acc_avg - acc_bound) < 0.00001):
+	if (abs(sp_avg - 1) < 0.0001 or abs(acc_avg - acc_bound) < 0.0001):
 		return 0
 	return 2 / (1 / (sp_avg - 1) + 1 / (1 - acc_avg / acc_bound))
 
@@ -203,6 +203,7 @@ def join_optimize(args):
 				optimum_key = key
 				optimum_val = value_avg
 	else:
+		print("DEBUG greedy")
 		# for each loop, find the rate which passes criticality testing and has the highest score
 		best_params_per_loop = []
 		for module_name, func_dict in info_json.items():
@@ -223,8 +224,16 @@ def join_optimize(args):
 						
 						# calculate score
 						# there should be no absolute value but considering time imprecision for running toy programs
-						sp_avg = abs(time_avg - no_perf_time_avg) / no_perf_time_avg
-						curr_score = score(time_avg, min(errors_avg.values()), args.max_error) # take the minimum average accuracy
+						sp_avg = time_avg / no_perf_time_avg
+						curr_score = score(sp_avg, min(errors_avg.values()), args.max_error) # take the minimum average accuracy
+						# DEBUG
+
+						curr_score = score(sp_avg, sum(errors_avg.values()) / len(errors_avg.values()), args.max_error) # take the average of average accuracy
+						print("SCORE", curr_score)
+						print("ERROR", sum(errors_avg.values()) / len(errors_avg.values()))
+						print("SPEEDUP", sp_avg)
+						print('--------------------------')
+						# print("DEBUG3", errors_avg.values())
 						if curr_score > best_score:
 							best_score = curr_score
 							best_rate = rate
@@ -240,6 +249,7 @@ def join_optimize(args):
 					best_params_per_loop.append(best_params)
 
 		best_params_per_loop.sort(key=lambda p : p['score'], reverse=True) # sorted by score in decreasing order
+		print("DEBUG", best_params_per_loop)
 
 		# try perforation rates with different combinations
 		best_rate_params = { m : { f: {l : 1 for l in ld } for f,ld in fd.items()} for m,fd in info_json.items() }
