@@ -44,7 +44,7 @@ loop-info: $(TARGET_PHIS_LL)
 	opt -enable-new-pm=0 -load $(BUILD_DIR)/loop-perf/libLoopPerforationPass.* -loop-count -info  $(TARGET)/loop-info.json -S -o /dev/null $<
 
 standard:
-	clang $(CFLAGS) $(LDFLAGS) -O1 $(TARGET_SRC) -o $(TARGET_STANDARD_EXC)
+	clang $(CFLAGS) $(LDFLAGS) -O1 $(TARGET_SRC) -o $(TARGET_STANDARD_EXC) -lm
 
 standard-run:
 	$(TARGET_STANDARD_EXC) $(STANDARD_ARGS) > $(TARGET_STANDARD_OUTPUT)
@@ -56,7 +56,7 @@ TARGET_PERF_OUTPUT := $(TARGET)/perforated.txt
 
 perforated:
 	opt -enable-new-pm=0 -load $(BUILD_DIR)/loop-perf/libLoopPerforationPass.* -loop-perf -rates $(TARGET)/loop-rates.json -S $(TARGET_PHIS_LL) -o $(TARGET_PERF_LL)
-	clang $(CFLAGS) $(LDFLAGS) -O1 $(TARGET_PERF_LL) -o $(TARGET_PERF_EXC)
+	clang $(CFLAGS) $(LDFLAGS) -O1 $(TARGET_PERF_LL) -o $(TARGET_PERF_EXC) -lm
 
 perforated-run:
 	$(TARGET_PERF_EXC) $(PERFORATED_ARGS) > $(TARGET_PERF_OUTPUT)
