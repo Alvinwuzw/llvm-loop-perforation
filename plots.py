@@ -64,14 +64,12 @@ def plot_frontier(data, args) :
 		alpha = 0.4,
 		linewidths = 0, s=100, zorder=0)
 
-
-	orig_idx = special==color_lookup['!original'];
-	ax.axes.scatter(times[orig_idx], errors[orig_idx], zorder=1, alpha=0.4,
-		c=special[orig_idx].tolist(), marker='o', s=100, linewidths=0, edgecolor=seaborn_colors[3])
-
 	ax.axes.scatter(times[frontier], errors[frontier], zorder=1, alpha=1,
 		c=special[frontier].tolist(), marker='o', s=100, linewidths=2, edgecolor=seaborn_colors[3])
 
+	orig_idx = special==color_lookup['!original'];
+	ax.axes.scatter(times[orig_idx], errors[orig_idx], zorder=1, alpha=0.5,
+		c=special[orig_idx].tolist(), marker='o', s=100, linewidths=0, edgecolor=seaborn_colors[3])
 
 	# ax.axes.scatter(times[frontier], errors[frontier], s=1000, zorder=0, c=seaborn_colors[1])
 
@@ -118,7 +116,8 @@ def plot_speedups(data, args):
 					graph_data = graph_data.append({'Benchmark': benchmark, 'Type': typ, 'Time (s)': rslt_dict['time'], 'Trial' : j}, ignore_index=True)
 	ax = sns.barplot(x="Benchmark", y="Time (s)", hue="Type", data=graph_data)
 	plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
-	plt.savefig('speedup.png', bbox_inches='tight', dpi=400)
+	# plt.savefig('speedup.png', bbox_inches='tight', dpi=400)
+	plt.savefig('results/speedups.png', bbox_inches='tight', dpi=400)
 	if(args.show):
 		plt.show()
 	plt.close()
@@ -128,7 +127,7 @@ if __name__ == '__main__':
 	parser.add_argument('command', help="The sub plot command: of [frontier]", nargs='+')
 	# parser.add_argument('target', nargs='?', default='tests/matrix_multiply')
 	parser.add_argument('--show', action='store_true', help="")
-	parser.add_argument('--target', help="", required=False, default=None)
+	parser.add_argument('--target', help="", required=False, default='')
 	parser.add_argument('--acc-measure', help="accuracy measure", required=False, default=None)
 
 	args = parser.parse_args()
@@ -149,6 +148,8 @@ if __name__ == '__main__':
 		data = {}
 		for subdir in ['benchmarks', 'tests']:
 			for base_name in os.listdir( os.path.join(args.target, subdir) ):
+				if (base_name == 'blackscholes'):
+					continue
 				base_path = os.path.join(args.target, subdir, base_name)
 
 				if os.path.isdir(base_path):

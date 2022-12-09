@@ -15,10 +15,9 @@ import itertools
 # global variables
 # mod = importlib.import_module("error")
 
+
 def flatten(dic, prefix="", target={}, sep=";"):
-	'''
-	flatten a json object to a string
-	'''
+	'''Flatten a json object to a string.'''
 
 	for k,v in dic.items():
 		if isinstance(v, dict):
@@ -30,8 +29,8 @@ def flatten(dic, prefix="", target={}, sep=";"):
 
 def average_time_error(result, num_trials):
 	'''
-	calculate average time and errors for result (value in results.json)
-	returns none if any return code is not 0
+	Calculate average time and errors for result (value in results.json);
+	returns none if any return code is not 0.
 	'''
 
 	time_avg = None
@@ -58,9 +57,7 @@ def average_time_error(result, num_trials):
 
 
 def score(sp_avg, acc_avg, acc_bound):
-	'''
-	return harmonic mean for greedy approach
-	'''
+	'''Return harmonic mean for greedy approach.'''
 
 	if (abs(sp_avg - 1) < 0.0001 or abs(acc_avg - acc_bound) < 0.0001):
 		return 0
@@ -69,8 +66,9 @@ def score(sp_avg, acc_avg, acc_bound):
 
 def test_perforation(args, rate_params, filtered_error_names, mod):
 	'''
-	test perforation, record results, and return results
+	Run and record loop perforation according to given perforate rate. 
 	'''
+
 	# args
 	loop_rates_path = os.path.join(args.target, 'loop-rates.json')
 	with open(loop_rates_path, 'w') as file:
@@ -121,7 +119,7 @@ def test_perforation(args, rate_params, filtered_error_names, mod):
 
 def join_optimize(args):
 	'''
-	Perform loop perforation for each combination of rates and return results. 
+	Test loop perforation for each combination of rates and find a optimal one. 
 	'''
 
 	# load loop info
@@ -138,7 +136,7 @@ def join_optimize(args):
 	rate_params = { m : { f: {l : 1 for l in ld } for f,ld in fd.items()} for m,fd in info_json.items() }
 	results = {}	# results dictionary: {loop rate dict, jsonified} => statistic => value.
 
-	# no perforation.
+	# no perforation (rates are all 1).
 	result_no_perf = test_perforation(args, rate_params, filtered_error_names, mod)
 	results['!original_' + json.dumps(rate_params)] = result_no_perf
 	
@@ -165,7 +163,7 @@ def join_optimize(args):
 				for loop_name in loop_dict:
 					rate_params[module_name][func_name][loop_name] = 1
 		
-		# join_optimal()
+		# find a joined candidate based on time
 		optimum_key, optimum_val = None, None
 
 		for key, values in results.items():
@@ -223,7 +221,7 @@ def join_optimize(args):
 						
 						# calculate score
 						# there should be no absolute value but considering time imprecision for running toy programs
-						sp_avg = time_avg / no_perf_time_avg
+						sp_avg = no_perf_time_avg / time_avg
 						# curr_score = score(sp_avg, min(errors_avg.values()), args.max_error) # take the minimum average accuracy
 						curr_score = score(sp_avg, sum(errors_avg.values()) / len(errors_avg.values()), args.max_error) # take the average of average accuracy
 						if curr_score > best_score:
@@ -298,7 +296,7 @@ if __name__ == "__main__":
 	####################### NOW WE BEGIN ########################
 	subprocess.call(['make', 'clean'])
 
-	# make, run the standard version, for output reasons
+	# make and run the standard version, for output reasons
 	subprocess.call(['make', 'standard', 'TARGET={}'.format(args.target)])
 	intact_proc = subprocess.Popen(['make', 'standard-run', 'TARGET={}'.format(args.target)])
 	intact_proc.wait()
@@ -310,6 +308,7 @@ if __name__ == "__main__":
 	make_process = subprocess.Popen(['make', 'loop-info', 'TARGET={}'.format(args.target)])
 	make_process.wait()
 
+	# run loop perforation
 	results = join_optimize(args)
 
 	# we now have a collection of {result => indent}.
