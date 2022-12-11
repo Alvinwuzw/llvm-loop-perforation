@@ -51,6 +51,7 @@ def plot_frontier(data, args) :
 		if ec != 0:
 			special[i] = '#000000'
 
+		#find Pareto frontier
 		for j, (t2, es2, _, _) in enumerate(canonicalList):
 			if i is j: continue
 
@@ -148,8 +149,6 @@ if __name__ == '__main__':
 		data = {}
 		for subdir in ['benchmarks', 'tests']:
 			for base_name in os.listdir( os.path.join(args.target, subdir) ):
-				if (base_name == 'blackscholes'):
-					continue
 				base_path = os.path.join(args.target, subdir, base_name)
 
 				if os.path.isdir(base_path):
